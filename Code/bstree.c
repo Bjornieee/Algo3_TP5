@@ -78,6 +78,7 @@ void bstree_add(ptrBinarySearchTree *t, int value) {
     }
     ptrBinarySearchTree *tree = t;
     while (*tree) {
+        if (value == (*tree)->root) return;
         if (value > (*tree)->root) {
             if ((*tree)->right) {
                 tree = &((*tree)->right);
@@ -98,9 +99,15 @@ void bstree_add(ptrBinarySearchTree *t, int value) {
     }
 }
 
-bool bstree_search(const BinarySearchTree *t, int v) {
-    (void) t;
-    (void) v;
+bool bstree_search(const BinarySearchTree *tree, int value) {
+    if (!tree) return false;
+    BinarySearchTree tree1 = *tree;
+    BinarySearchTree *t = &tree1;
+    while (t) {
+        if (t->root == value) return true;
+        else if (t->root > value) t = (t->left);
+        else if (t->root < value) t = (t->right);
+    }
     return false;
 }
 
@@ -172,9 +179,9 @@ void bstree_iterative_depth_infix(const BinarySearchTree *t, OperateFunctor f, v
 
 void bstree_iterative_breadth_prefix(const BinarySearchTree *t, OperateFunctor f, void *userData) {
     Queue *queue = createQueue();
-    queuePush(queue,t);
-    while(!queueEmpty(queue)) {
-        if(!queueTop(queue)) queuePop(queue);
+    queuePush(queue, t);
+    while (!queueEmpty(queue)) {
+        if (!queueTop(queue)) queuePop(queue);
         else {
             f(queueTop(queue), userData);
             queuePush(queue, bstree_left(queueTop(queue)));

@@ -2,10 +2,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-
 #include "queue.h"
-
-void bstree_remove_node(ptrBinarySearchTree *t, ptrBinarySearchTree current);
 
 /*------------------------  BSTreeType  -----------------------------*/
 
@@ -43,10 +40,12 @@ BinarySearchTree *bstree_cons(BinarySearchTree *left, BinarySearchTree *right, i
     t->root = root;
     return t;
 }
+void bstree_remove_nodev2(ptrBinarySearchTree current,void * userData);
 
 void bstree_delete(ptrBinarySearchTree *t) {
-    while (!bstree_empty(*t))
-        bstree_remove_node(t, *t);
+    bstree_depth_postfix(*t, (OperateFunctor) bstree_remove_nodev2, NULL);
+    free(*t);
+    *t = NULL;
 }
 
 bool bstree_empty(const BinarySearchTree *t) {
@@ -134,12 +133,12 @@ BinarySearchTree *bstree_successor(const BinarySearchTree *x) {
         while(y->left){
             y=y->left;
         }
-    } else if(isLeftSon(x)){
-        y = x->parent;
     } else {
-        if(isRightSon(x)) y=x->parent;
-        while(isRightSon(y)) y = y->parent;
-        if(isLeftSon(y)) y = y->parent;
+        y=x->parent;
+        while(y && (x=y->right)){
+            x=y;
+            y=y->parent;
+        }
     }
     return y;
 }
@@ -162,42 +161,61 @@ BinarySearchTree *bstree_predecessor(const BinarySearchTree *x) {
     return y;
 }
 
+
 void bstree_swap_nodes(ptrBinarySearchTree *tree, ptrBinarySearchTree from, ptrBinarySearchTree to) {
     assert(!bstree_empty(*tree) && !bstree_empty(from) && !bstree_empty(to));
-    if(!((*tree)->right || (*tree)->left)) return;
-    if(from->right) from->right->parent = to;
-    if(from->left) from->left->parent = to;
-    if(to->right) to->right->parent = from;
-    if(to->left) to->left->parent = from;
-    ptrBinarySearchTree right = from->right, left=from->left, parent = from->parent;
-    from->right = to->right;
-    from->left = to->left;
-    to->right = right;
-    to->left = left;
-    from -> parent = to -> parent;
-    to->parent = parent;
     if(from->parent) {
-        if(from->parent->right == to){
-            from->parent->right = from;
-        } else from->parent->left = from;
+        if(from->parent->left == from) from->parent->left = to;
+        else from->parent->right = to;
+    } else *tree = to;
+    if (to->parent) {
+        if(to->parent->left == to) to->parent->left = from;
+        else to->parent->right = from;
     }
-    if(to->parent) {
-        if(to->parent->right == from){
-            to->parent->right = to;
-        } else to->parent->left = to;
-    }
+    BinarySearchTree *tmp = from->parent;
+    from->parent = to->parent;
+    to->parent = tmp;
+    if(from->left) from->left->parent = to;
+    if(to->left) to->left->parent = from;
+    tmp = from->left;
+    from->left = to->left;
+    to->left = tmp;
+    if(from->right) from->right->parent = to;
+    if(to->right) to->right->parent = from;
+    tmp = from->right;
+    from->right = to->right;
+    to->right = tmp;
 }
-
+void bstree_remove_nodev2(BinarySearchTree *current,void * userData) {
+    (void) userData;
+    int iParent = 0;
+    if(current->parent) {
+        if (current->parent->right == current) iParent = 1;
+        BinarySearchTree *parent = current->parent;
+        free(current);
+        if (iParent) {
+            parent->right = NULL;
+        } else {
+            parent->left = NULL;
+        }
+    }
+    current = NULL;
+}
 // t -> the tree to remove from, current -> the node to remove
 void bstree_remove_node(ptrBinarySearchTree *t, ptrBinarySearchTree current) {
-    assert(!bstree_empty(*t) && !bstree_empty(current));
-    while(current->left && current->right){
-        bstree_swap_nodes(t,current, bstree_successor(current));
+    ptrBinarySearchTree subs;
+    if(current->left == current->right) subs = NULL;
+    else if(!current->left) subs = current->right;
+    else if(!current->right) subs = current->left;
+    else {
+        ptrBinarySearchTree leaf = bstree_successor(current);
+        bstree_swap_nodes(t,current,leaf);
+        subs = current->right;
     }
-    if(current->left) bstree_swap_nodes(t,current, bstree_left(current));
-    else if(current->right) bstree_swap_nodes(t,current, bstree_right(current));
-    if(current->parent->right == current)current->parent->right=NULL;
-    else current->parent->left=NULL;
+    if(subs) subs->parent = current->parent;
+    if(!current->parent) *t = subs;
+    else if(current->parent->left == current) current->parent->left = subs;
+    else current->parent->right = subs;
     free(current);
 }
 
@@ -206,8 +224,7 @@ Couple bstree_searchv2(const BinarySearchTree *tree, int value) {
     couple.found = false;
     couple.pos = NULL;
     if (!tree) return couple;
-    BinarySearchTree tree1 = *tree;
-    BinarySearchTree *t = &tree1;
+    BinarySearchTree *t = (BinarySearchTree *) tree;
     while (t) {
         if (t->root == value) {
             couple.pos = t;
@@ -239,7 +256,7 @@ void bstree_depth_prefix(const BinarySearchTree *tree, OperateFunctor f, void *u
 }
 
 void bstree_depth_infix(const BinarySearchTree *tree, OperateFunctor f, void *userData) {
-    if (bstree_empty(tree)) {
+    if (!tree) {
         return;
     }
     bstree_depth_infix(tree->left, f, userData);
@@ -257,9 +274,24 @@ void bstree_depth_postfix(const BinarySearchTree *tree, OperateFunctor f, void *
 }
 
 void bstree_iterative_depth_infix(const BinarySearchTree *t, OperateFunctor f, void *userData) {
-    (void) t;
-    (void) f;
-    (void) userData;
+    BinarySearchTree *current = (BinarySearchTree *)t;
+    BinarySearchTree *next = bstree_parent(t);
+    BinarySearchTree *prev = bstree_parent(t);
+    while (!bstree_empty(current)) {
+        if (prev == bstree_parent(current)){
+            prev = current;
+            next = bstree_left(current);
+        }
+        if(bstree_empty(next) || prev == bstree_left(current)) {
+            f(current,userData);
+            prev = current;
+            next = bstree_right(current);
+        }
+        if(bstree_empty(next) || prev == bstree_right(current)){
+            prev = current; next = bstree_parent(current);
+        }
+        current = next;
+    }
 }
 
 void bstree_iterative_breadth_prefix(const BinarySearchTree *t, OperateFunctor f, void *userData) {
@@ -274,6 +306,7 @@ void bstree_iterative_breadth_prefix(const BinarySearchTree *t, OperateFunctor f
             queuePop(queue);
         }
     }
+    deleteQueue(&queue);
 }
 
 /*------------------------  BSTreeIterator  -----------------------------*/
@@ -294,21 +327,38 @@ struct _BSTreeIterator {
 
 /* minimum element of the collection */
 const BinarySearchTree *goto_min(const BinarySearchTree *e) {
-    (void) e;
-    return NULL;
+    if(!e) return NULL;
+    if(!(e->left)) return e;
+    ptrBinarySearchTree t = e->left;
+    while(t->left){
+        t=t->left;
+    }
+    return t;
 }
 
 /* maximum element of the collection */
 const BinarySearchTree *goto_max(const BinarySearchTree *e) {
-    (void) e;
-    return NULL;
+    if(!e) return NULL;
+    if(!(e->right)) return e;
+    ptrBinarySearchTree t = e->right;
+    while(t->right){
+        t=t->right;
+    }
+    return t;
 }
 
 /* constructor */
 BSTreeIterator *bstree_iterator_create(const BinarySearchTree *collection, IteratorDirection direction) {
-    (void) collection;
-    (void) direction;
-    return NULL;
+    BSTreeIterator *iterator = malloc(sizeof(BSTreeIterator));
+    iterator->collection = collection;
+    if(direction == forward){
+        iterator->begin = goto_min;
+        iterator->next = bstree_successor;
+    } else {
+        iterator->begin = goto_max;
+        iterator->next =  bstree_predecessor;
+    }
+    return iterator;
 }
 
 /* destructor */

@@ -1,0 +1,1 @@
+/usr/bin/cc -g CMakeFiles/Algo3_TP5.dir/Code/bstree.c.o CMakeFiles/Algo3_TP5.dir/Code/main.c.o CMakeFiles/Algo3_TP5.dir/Code/queue.c.o -o Algo3_TP5 
